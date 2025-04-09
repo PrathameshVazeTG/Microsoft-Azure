@@ -2,29 +2,14 @@
     "name": "socialiteproviders/microsoft-azure",
     "description": "Microsoft Azure OAuth2 Provider for Laravel Socialite",
     "license": "MIT",
-    "keywords": [
-        "azure",
-        "laravel",
-        "microsoft",
-        "oauth",
-        "provider",
-        "socialite"
-    ],
-    "authors": [
-        {
-            "name": "Chris Hemmings",
-            "email": "chris@hemmin.gs"
-        }
-    ],
-    "support": {
-        "issues": "https://github.com/socialiteproviders/providers/issues",
-        "source": "https://github.com/socialiteproviders/providers",
-        "docs": "https://socialiteproviders.com/microsoft-azure"
-    },
+    "authors": [{
+        "name": "Chris Hemmings",
+        "email": "chris@hemmin.gs"
+    }],
     "require": {
-        "php": "^8.0",
+        "php": "^5.6 || ^7.0",
         "ext-json": "*",
-        "socialiteproviders/manager": "^4.4"
+        "socialiteproviders/manager": "~2.0 || ~3.0"
     },
     "autoload": {
         "psr-4": {

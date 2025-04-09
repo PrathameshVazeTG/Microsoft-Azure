@@ -2,57 +2,56 @@
 
 namespace SocialiteProviders\Azure;
 
-use GuzzleHttp\RequestOptions;
 use SocialiteProviders\Manager\OAuth2\AbstractProvider;
+use SocialiteProviders\Manager\OAuth2\User;
 
 class Provider extends AbstractProvider
 {
-    public const IDENTIFIER = 'AZURE';
+    /**
+     * Unique Provider Identifier.
+     */
+    const IDENTIFIER = 'AZURE';
 
     /**
      * The base Azure Graph URL.
      *
      * @var string
      */
-    protected $graphUrl = 'https://graph.microsoft.com/v1.0/me';
+    protected $graphUrl = 'https://graph.microsoft.com/myorganization/me';
 
-    protected $scopeSeparator = ' ';
+    /**
+     * The Graph API version for the request.
+     *
+     * @var string
+     */
+    protected $version = '1.5';
 
-    protected $scopes = ['User.Read'];
-
-    protected function getAuthUrl($state): string
+    /**
+     * {@inheritdoc}
+     */
+    protected function getAuthUrl($state)
     {
-        return $this->buildAuthUrlFromBase($this->getBaseUrl().'/oauth2/v2.0/authorize', $state);
+        return $this->buildAuthUrlFromBase(
+            'https://login.microsoftonline.com/'.($this->config['tenant'] ?: 'common').'/oauth2/authorize',
+            $state
+        );
     }
 
     /**
-     * Return the logout endpoint with an optional post_logout_redirect_uri query parameter.
-     *
-     * @param  string|null  $redirectUri  The URI to redirect to after logout, if provided.
-     *                                    If not provided, no post_logout_redirect_uri parameter will be included.
-     * @return string The logout endpoint URL.
+     * {@inheritdoc}
      */
-    public function getLogoutUrl(?string $redirectUri = null)
+    protected function getTokenUrl()
     {
-        $logoutUrl = $this->getBaseUrl().'/oauth2/logout';
-
-        return $redirectUri === null ?
-            $logoutUrl :
-            $logoutUrl.'?'.http_build_query(['post_logout_redirect_uri' => $redirectUri], '', '&', $this->encodingType);
-    }
-
-    protected function getTokenUrl(): string
-    {
-        return $this->getBaseUrl().'/oauth2/v2.0/token';
+        return 'https://login.microsoftonline.com/common/oauth2/token';
     }
 
     public function getAccessToken($code)
     {
         $response = $this->getHttpClient()->post($this->getTokenUrl(), [
-            RequestOptions::FORM_PARAMS => $this->getTokenFields($code),
+            'form_params' => $this->getTokenFields($code),
         ]);
 
-        $this->credentialsResponseBody = json_decode((string) $response->getBody(), true);
+        $this->credentialsResponseBody = json_decode($response->getBody(), true);
 
         return $this->parseAccessToken($response->getBody());
     }
@@ -63,14 +62,16 @@ class Provider extends AbstractProvider
     protected function getUserByToken($token)
     {
         $response = $this->getHttpClient()->get($this->graphUrl, [
-            RequestOptions::HEADERS => [
+            'query' => [
+                'api-version' => $this->version,
+            ],
+            'headers' => [
                 'Accept'        => 'application/json',
                 'Authorization' => 'Bearer '.$token,
             ],
-            RequestOptions::PROXY => $this->getConfig('proxy'),
         ]);
 
-        return json_decode((string) $response->getBody(), true);
+        return json_decode($response->getBody(), true);
     }
 
     /**
@@ -78,44 +79,30 @@ class Provider extends AbstractProvider
      */
     protected function mapUserToObject(array $user)
     {
-        return (new User)->setRaw($user)->map([
-            'id'            => $user['id'],
-            'nickname'      => null,
-            'name'          => $user['displayName'],
-            'email'         => $user['userPrincipalName'],
-            'principalName' => $user['userPrincipalName'],
-            'mail'          => $user['mail'],
-            'avatar'        => null,
+        return (new User())->setRaw($user)->map([
+            'id'    => $user['objectId'], 'nickname' => null, 'name' => $user['displayName'],
+            'email' => $user['userPrincipalName'], 'avatar' => null,
         ]);
     }
 
     /**
-     * Get the access token response for the given code.
+     * {@inheritdoc}
+     */
+    protected function getTokenFields($code)
+    {
+        return array_merge(parent::getTokenFields($code), [
+            'grant_type' => 'authorization_code',
+            'resource'   => 'https://graph.windows.net',
+        ]);
+    }
+
+    /**
+     * Add the additional configuration key 'tenant' to enable the branded sign-in experience.
      *
-     * @param  string  $code
      * @return array
      */
-    public function getAccessTokenResponse($code)
+    public static function additionalConfigKeys()
     {
-        $response = $this->getHttpClient()->post($this->getTokenUrl(), [
-            RequestOptions::HEADERS     => ['Accept' => 'application/json'],
-            RequestOptions::FORM_PARAMS => $this->getTokenFields($code),
-            RequestOptions::PROXY       => $this->getConfig('proxy'),
-        ]);
-
-        return json_decode((string) $response->getBody(), true);
-    }
-
-    /**
-     * @return string
-     */
-    protected function getBaseUrl(): string
-    {
-        return 'https://login.microsoftonline.com/'.$this->getConfig('tenant', 'common');
-    }
-
-    public static function additionalConfigKeys(): array
-    {
-        return ['tenant', 'proxy'];
+        return ['tenant'];
     }
 }

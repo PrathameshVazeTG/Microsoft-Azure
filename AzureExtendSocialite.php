@@ -6,8 +6,14 @@ use SocialiteProviders\Manager\SocialiteWasCalled;
 
 class AzureExtendSocialite
 {
-    public function handle(SocialiteWasCalled $socialiteWasCalled): void
+    /**
+     * Execute the provider.
+     */
+    public function handle(SocialiteWasCalled $socialiteWasCalled)
     {
-        $socialiteWasCalled->extendSocialite('azure', Provider::class);
+        $socialiteWasCalled->extendSocialite(
+            'azure',
+            __NAMESPACE__.'\Provider'
+        );
     }
 }
